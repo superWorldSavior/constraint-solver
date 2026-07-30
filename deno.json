@@ -1,0 +1,27 @@
+{
+  "name": "@casys/constraint-solver",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "tasks": {
+    "test": "deno test --allow-all tests/",
+    "check": "deno check mod.ts"
+  },
+  "publish": {
+    "include": [
+      "mod.ts",
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "**/*_test.ts",
+      "**/*.bench.ts"
+    ]
+  },
+  "imports": {
+    "mathjs": "npm:mathjs@^15.2.0",
+    "@std/assert": "jsr:@std/assert@^1"
+  }
+}
