@@ -1,6 +1,16 @@
 # @casys/constraint-solver
 
-Evaluates parametric constraints, with **units treated as part of the value**.
+Evaluates **and solves** parametric constraints, with **units treated as part of the value**.
+
+Three questions, one library:
+
+| Question | Function | Needs |
+|---|---|---|
+| Do these values satisfy the constraints? | `evaluateAll` | nothing — pure computation |
+| Can these constraints hold together at all? | `solve` | the `z3` executable |
+| What values satisfy them — at best, optimally? | `solve` with an objective | the `z3` executable |
+
+The second question is the one no evaluation can answer: `mass <= 2` and `mass >= 5` are contradictory for *every* value, and an agent writing constraints needs to hear that immediately, with the conflicting subset named.
 
 ```ts
 import { evaluateAll, toValueMap } from "@casys/constraint-solver";
@@ -77,6 +87,39 @@ One constraint. For a top-level comparison the result also carries `computedValu
 
 Static dimensional check, before any value exists. Flags unrecognised unit symbols and comparisons mixing incompatible dimensions. Reports only what literals make decidable — a unit carried by an unresolved reference is unknown, not wrong.
 
+### `solve(constraints, options?): Promise<SolveResult>`
+
+Satisfiability, solving and optimisation, via the `z3` executable spoken to in SMT-LIB2.
+
+```ts
+import { solve } from "@casys/constraint-solver";
+
+// Contradiction — detectable by no evaluation:
+const r = await solve([massBudget, massFloor]);
+// { status: "unsat", conflict: ["mass-budget", "mass-floor"] }
+
+// Optimal sizing:
+const best = await solve([massFloor, massBudget2], {
+  objective: { variable: "totalMass", direction: "minimize" },
+});
+// { status: "sat", model: { totalMass: { value: 1, unit: "kg" } },
+//   objectiveValue: { value: 1, unit: "kg" } }
+```
+
+- **Units are normalised before z3 runs.** z3 has no notion of dimension, so `4 lb` becomes `1.8143 kg` in the script, and model values come back in SI base units with their symbol. A kg floor above an lb ceiling is `unsat`, as it should be.
+- **`options.fixed`** pins values (`toValueMap({ a: 2 })`) as equality assertions — solve for the remaining variables.
+- **`conflict`** names a minimal contradicting subset by your constraint ids.
+- Functions supported in solving: `abs`, `min`, `max` (encoded as `ite`). `sqrt`/`round`/`floor`/`ceil` are evaluation-only and rejected with an error naming the constraint.
+- **Requires the `z3` binary on PATH** — `apt install z3`, `brew install z3`. Missing z3 raises `Z3NotFoundError` with those instructions; `evaluateAll` and `checkUnits` never need it. Under Deno, spawning z3 needs `--allow-run=z3`.
+
+> Why the binary and not the `z3-solver` WASM package: the WASM build's pthreads crash Deno's worker implementation (verified against 4.15 and 5.0 — stack overflow in `postMessage`). A subprocess behaves identically under Deno and Node.
+
+### `toSmtLib(constraints, options?): SmtScript`
+
+The SMT-LIB2 generator behind `solve`, exposed for inspection and debugging: the script text, the assertion-name → constraint-id map, and the inferred per-variable SI units. Pure text generation, no z3 needed.
+
+Unit inference is deliberately simple: the first unit-carrying literal in a constraint sets the dimension of the variables sharing that constraint. Run `checkUnits` first on models that might mix dimensions.
+
 ### `evaluate(expr, values): MathType | boolean`
 
 The raw evaluator. Throws `EvalError` (carrying `unresolvedRefs` when relevant) instead of encoding failure in a status. Use `evaluateConstraint` unless you need the exception.
@@ -111,7 +154,7 @@ Unit handling comes from [mathjs](https://mathjs.org/docs/datatypes/units.html) 
 
 ```bash
 deno task check    # deno check mod.ts
-deno task test     # 20 tests, no I/O
+deno task test     # 31 tests; the 9 solve tests need z3 on PATH
 ```
 
 ## License

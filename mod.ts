@@ -31,6 +31,10 @@
 export { EvalError, evaluate, evaluateAll, evaluateConstraint, toValueMap } from "./src/evaluate.ts";
 export { checkUnits } from "./src/units.ts";
 export { exprToString } from "./src/format.ts";
+export { SmtTranslationError, solve, Z3NotFoundError } from "./src/solve.ts";
+export type { SolveOptions, SolveResult } from "./src/solve.ts";
+export { toSmtLib } from "./src/smtlib.ts";
+export type { SmtOptions, SmtScript } from "./src/smtlib.ts";
 
 export type {
   BinaryExpr,

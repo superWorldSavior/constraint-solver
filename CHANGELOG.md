@@ -8,6 +8,8 @@ Initial release. Extracted from the constraint evaluator in `lib/sim`, with the 
 
 ### Added
 
+- **`solve`** — satisfiability, solving and optimisation via the `z3` executable (SMT-LIB2 over stdin). Contradictory constraints return `unsat` with a minimal conflicting subset named by constraint id — the question no evaluation can answer, since a structural contradiction holds for no values. An `objective` turns an arbitrary solution into the optimum; `fixed` pins known values. Units are normalised to SI base before z3 runs, so a kg floor above an lb ceiling is correctly unsat. The WASM `z3-solver` package was rejected after testing: its pthread build crashes Deno's workers (4.15 and 5.0 both), while a subprocess behaves identically under Deno and Node.
+- **`toSmtLib`** — the SMT-LIB2 generator behind `solve`, exposed for inspection: script text, assertion-name → constraint-id map, inferred per-variable SI units.
 - **`evaluateAll` / `evaluateConstraint`** — evaluate parametric constraints against resolved values. Never throw; every failure becomes a `status`.
 - **Unit-aware comparison.** `2.5 kg ≤ 4 lb` is `fail`, because 2.5 kg is 5.51 lb. Compatible units convert automatically; incompatible dimensions and quantity-versus-dimensionless comparisons are errors, never silent numeric comparisons.
 - **Four-valued outcome** — `pass | fail | error | unresolved`. A feature path absent from the value map makes the constraint `unresolved` and names the missing path; it never defaults to zero.
