@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "constraint-solver: Evaluates parametric constraints with units treated as part of the value — 2.5 kg vs a 4 lb limit fails, as it should. Source-agnostic: SysML, FEA, cost models."
+authors:
+  - family-names: Pesle
+    given-names: Erwan Lee
+year: 2026
+license: MIT
+repository-code: https://github.com/Casys-AI/constraint-solver
+type: software
