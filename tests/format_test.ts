@@ -55,7 +55,7 @@ Deno.test("format — a right operand under / or - keeps its parentheses", () =>
   );
 });
 
-Deno.test("format — no parentheses where the reading is unchanged", () => {
+Deno.test("format — leaves out parentheses that change no value", () => {
   assertEquals(
     exprToString(bin(bin(ref("a"), "-", ref("b")), "-", ref("c"))),
     "a - b - c",
@@ -100,5 +100,65 @@ Deno.test("format — unary minus keeps the parentheses of a compound operand", 
   assertEquals(
     exprToString(bin(ref("a"), "-", neg(ref("b")))),
     "a - (-b)",
+  );
+});
+
+Deno.test("format — a negative is grouped only right of a minus", () => {
+  assertEquals(exprToString(bin(ref("t"), ">=", neg(num(10)))), "t ≥ -10");
+  assertEquals(exprToString(bin(ref("a"), "+", neg(ref("b")))), "a + -b");
+  assertEquals(exprToString(bin(ref("a"), "*", neg(ref("b")))), "a * -b");
+  assertEquals(exprToString(bin(neg(ref("a")), "*", ref("b"))), "-a * b");
+  assertEquals(exprToString(bin(ref("a"), "-", num(-5))), "a - (-5)");
+  assertEquals(exprToString(neg(num(-5))), "-(-5)");
+  assertEquals(exprToString(neg(num(-5, "kg"))), "-(-5 kg)");
+});
+
+Deno.test("format — a quantity right of * or / is grouped", () => {
+  // `5 / 2 kg` reads (5 / 2) kg; `d / 5 km/h` reads (d / 5 km) / h.
+  assertEquals(exprToString(bin(num(5), "/", num(2, "kg"))), "5 / (2 kg)");
+  assertEquals(
+    exprToString(bin(ref("d"), "/", num(5, "km/h"))),
+    "d / (5 km/h)",
+  );
+  assertEquals(exprToString(bin(num(2), "*", num(5, "kg"))), "2 * (5 kg)");
+  assertEquals(exprToString(bin(num(5, "kg"), "/", num(2))), "5 kg / 2");
+  assertEquals(exprToString(bin(ref("m"), "<=", num(5, "kg"))), "m ≤ 5 kg");
+});
+
+Deno.test("format — logic, calls and operators outside the table", () => {
+  assertEquals(
+    exprToString(bin(bin(ref("a"), "or", ref("b")), "and", ref("c"))),
+    "(a or b) and c",
+  );
+  assertEquals(
+    exprToString(bin(ref("a"), "or", bin(ref("b"), "and", ref("c")))),
+    "a or b and c",
+  );
+  assertEquals(
+    exprToString({
+      kind: "unary",
+      op: "not",
+      operand: bin(ref("a"), "<", ref("b")),
+    }),
+    "not(a < b)",
+  );
+  assertEquals(
+    exprToString(
+      bin(
+        {
+          kind: "call",
+          name: "max",
+          args: [bin(ref("a"), "+", ref("b")), num(2)],
+        },
+        "*",
+        num(3),
+      ),
+    ),
+    "max(a + b, 2) * 3",
+  );
+  // An operator from untyped input has no known precedence: group operands.
+  assertEquals(
+    exprToString(bin(ref("a"), "^" as BinaryOp, bin(ref("b"), "+", ref("c")))),
+    "a ^ (b + c)",
   );
 });

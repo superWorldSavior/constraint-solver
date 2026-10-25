@@ -55,9 +55,11 @@ export function exprToString(expr: ConstraintExpr): string {
     }
     case "unary": {
       if (expr.op === "not") return `not(${exprToString(expr.operand)})`;
-      // A compound or negated operand keeps its parentheses: -(a + b), -(-a).
+      // A compound or negative operand keeps its parentheses: -(a + b),
+      // -(-a), -(-5).
       const rendered = exprToString(expr.operand);
-      return expr.operand.kind === "binary" || expr.operand.kind === "unary"
+      return expr.operand.kind === "binary" || expr.operand.kind === "unary" ||
+          isNegative(expr.operand)
         ? `-(${rendered})`
         : `-${rendered}`;
     }
@@ -66,12 +68,22 @@ export function exprToString(expr: ConstraintExpr): string {
   }
 }
 
+/** A negation, or a negative number. */
+function isNegative(expr: ConstraintExpr): boolean {
+  return (expr.kind === "unary" && expr.op === "-") ||
+    (expr.kind === "literal" && expr.value < 0);
+}
+
 /**
  * Render an operand of `parentOp`, parenthesised wherever the bare text would
- * read as another expression: it binds more loosely than its parent; it sits
- * right of `-` or `/` at the same level (`a - (b - c)`, `a / (b * c)`); it is
- * a comparison inside a comparison; or it is a negation on the right
- * (`a - (-b)`).
+ * read as another expression or another value:
+ * - it binds more loosely than its parent;
+ * - it sits right of `-` or `/` at the same level (`a - (b - c)`,
+ *   `a / (b * c)`);
+ * - it is a comparison inside a comparison;
+ * - it is a negative right of `-` (`a - (-b)`, `a - (-5)`);
+ * - it is a quantity right of `*` or `/` (`5 / (2 kg)` is not `(5 / 2) kg`);
+ * - its parent is an operator outside the precedence table.
  */
 function operand(
   expr: ConstraintExpr,
@@ -79,14 +91,22 @@ function operand(
   side: "left" | "right",
 ): string {
   const rendered = exprToString(expr);
-  if (expr.kind === "unary" && expr.op === "-") {
-    return side === "right" ? `(${rendered})` : rendered;
+  const grouped = `(${rendered})`;
+  const parent = PRECEDENCE[parentOp];
+  if (parent === undefined) {
+    return expr.kind === "binary" ? grouped : rendered;
+  }
+  if (
+    expr.kind === "literal" && expr.unit && side === "right" &&
+    (parentOp === "*" || parentOp === "/")
+  ) return grouped;
+  if (isNegative(expr)) {
+    return side === "right" && parentOp === "-" ? grouped : rendered;
   }
   if (expr.kind !== "binary") return rendered;
   const own = PRECEDENCE[expr.op] ?? 0;
-  const parent = PRECEDENCE[parentOp] ?? 0;
   const sameLevelNeedsParens = own === parent &&
     (parent === PRECEDENCE["<"] ||
       (side === "right" && NON_ASSOCIATIVE.has(parentOp)));
-  return own < parent || sameLevelNeedsParens ? `(${rendered})` : rendered;
+  return own < parent || sameLevelNeedsParens ? grouped : rendered;
 }
