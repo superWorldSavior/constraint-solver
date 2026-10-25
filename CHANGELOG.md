@@ -2,6 +2,12 @@
 
 All notable changes to `@casys/constraint-solver` will be documented in this file.
 
+## [0.1.1] - 2026-10-25
+
+### Fixed
+
+- **`exprToString` keeps the parentheses the reading depends on.** A right operand at the same level as `-` or `/` lost them, so `thrust / (totalMass * 9.81) ≥ 2` was shown as `thrust / totalMass * 9.81 ≥ 2`, another expression than the one evaluated. The same held for `a - (b - c)`, a comparison inside a comparison, a unary minus over a compound operand (`-(a + b)` was shown as `-a + b`), and an operator outside the precedence table (`a ^ (b + c)`). A quantity right of `*` or `/` is now grouped, since mathjs reads `5 / 2 kg` as `(5 / 2) kg`: `5 / (2 kg)`. A negative right of `-` is grouped (`a - (-5)`), and so is a negative under a unary minus (`-(-5)`, formerly `--5`). Parentheses that change no value are still left out: `a - b - c`, `a * b * c`, `t ≥ -10`.
+
 ## [0.1.0] - 2026-07-30
 
 Initial release. Extracted from the constraint evaluator in `lib/sim`, with the evaluation core rewritten over [mathjs](https://mathjs.org) so that units participate in the comparison.
